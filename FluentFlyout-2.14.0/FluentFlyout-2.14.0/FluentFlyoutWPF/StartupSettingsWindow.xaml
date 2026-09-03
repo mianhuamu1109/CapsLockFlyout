@@ -1,0 +1,74 @@
+<Window x:Class="FluentFlyoutWPF.StartupSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CapsLockFlyout 设置"
+        Width="410"
+        Height="238"
+        MinWidth="410"
+        MinHeight="238"
+        MaxWidth="410"
+        MaxHeight="238"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Microsoft YaHei UI, Microsoft YaHei"
+        FontSize="13"
+        Background="#F3F3F3">
+    <Grid Margin="24,20,24,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock FontSize="20"
+                   FontWeight="DemiBold"
+                   Foreground="#1A1A1A"
+                   Text="CapsLockFlyout" />
+        <TextBlock Grid.Row="1"
+                   Margin="0,4,0,0"
+                   Foreground="#666666"
+                   Text="浮窗服务正在后台运行" />
+
+        <Border Grid.Row="2"
+                Margin="0,18,0,18"
+                Padding="14,12"
+                CornerRadius="7"
+                BorderThickness="1"
+                BorderBrush="#18000000"
+                Background="#FFFFFFFF">
+            <StackPanel>
+                <CheckBox x:Name="StartWithWindowsCheckBox"
+                          FontWeight="DemiBold"
+                          Content="通过 Windows 服务开机自启"
+                          Checked="OnStartupChoiceChanged"
+                          Unchecked="OnStartupChoiceChanged" />
+                <TextBlock Margin="24,6,0,0"
+                           Foreground="#666666"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           Text="服务会在开机时启动，并在登录或解锁后尽早显示托盘图标。更改此项需要管理员授权。" />
+                <TextBlock x:Name="StatusText"
+                           Margin="24,5,0,0"
+                           Foreground="#C42B1C"
+                           FontSize="12"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="3"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="88"
+                    Height="30"
+                    Margin="0,0,8,0"
+                    Click="OnExitClick"
+                    Content="退出程序" />
+            <Button Width="88"
+                    Height="30"
+                    IsDefault="True"
+                    Click="OnDoneClick"
+                    Content="完成" />
+        </StackPanel>
+    </Grid>
+</Window>

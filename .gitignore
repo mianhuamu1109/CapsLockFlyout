@@ -1,0 +1,19 @@
+# Build outputs
+artifacts/
+dist/
+.tools/
+Installer/Tools/
+**/bin/
+**/obj/
+**/*.user
+**/*.suo
+.vs/
+
+# Capture-only files
+docs/assets/raw/
+docs/capture-tools/
+
+# Local diagnostics
+current-flyout-screen.png
+native-volume-osd.png
+*.log

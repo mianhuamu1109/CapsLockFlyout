@@ -1,0 +1,402 @@
+// Copyright (c) 2024-2026 The FluentFlyout Authors
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+using FluentFlyout.Classes.Settings;
+using FluentFlyoutWPF.Classes.Services;
+using System.Windows;
+using System.Windows.Interop;
+using Windows.Services.Store;
+using MessageBox = Wpf.Ui.Controls.MessageBox;
+
+namespace FluentFlyout.Classes;
+
+/// <summary>
+/// Manages app licensing and premium features through the Microsoft Store
+/// </summary>
+public class LicenseManager
+{
+    private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+
+    private static LicenseManager? _instance;
+    private static readonly object _lock = new();
+
+    private StoreContext? _storeContext;
+    private StoreAppLicense? _appLicense;
+    private StoreProduct? _productResult;
+
+    private const string PremiumAddOnId = "9N3XXQFPGFW5";
+
+    private bool _isInitialized;
+    private bool _isPremiumUnlocked;
+    private bool _isStoreVersion;
+
+    /// <summary>
+    /// Gets the singleton instance of the LicenseManager
+    /// </summary>
+    public static LicenseManager Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                lock (_lock)
+                {
+                    _instance ??= new LicenseManager();
+                }
+            }
+            return _instance;
+        }
+    }
+
+    /// <summary>
+    /// Gets whether the app is a Store version (has Store Product ID)
+    /// </summary>
+    public bool IsStoreVersion => _isStoreVersion;
+
+    /// <summary>
+    /// Gets whether premium features are unlocked
+    /// </summary>
+    public bool IsPremiumUnlocked => _isPremiumUnlocked;
+
+    private LicenseManager()
+    {
+        _isInitialized = false;
+        _isPremiumUnlocked = false;
+    }
+
+    /// <summary>
+    /// Initializes the license manager and checks license status
+    /// </summary>
+    public async Task InitializeAsync()
+    {
+        if (_isInitialized)
+            return;
+
+        try
+        {
+            Logger.Info("LicenseManager: Initializing");
+#if GITHUB_RELEASE
+            _isStoreVersion = false;
+            _isPremiumUnlocked = true;
+            _isInitialized = true;
+            return;
+#endif
+            // Get Store context
+            _storeContext = StoreContext.GetDefault();
+
+            var interop = new WindowInteropHelper(Application.Current.MainWindow);
+            IntPtr hwnd = interop.Handle;
+            WinRT.Interop.InitializeWithWindow.Initialize(_storeContext, hwnd);
+
+            // Get app license
+            _appLicense = await _storeContext.GetAppLicenseAsync();
+
+            // if user ever ran a self-compiled or GitHub version, set store version to false
+            //if (!String.IsNullOrEmpty(SettingsManager.Current.LastKnownVersion) && SettingsManager.Current.IsStoreVersion == false)
+            //{
+            //    Debug.WriteLine("LicenseManager: Previous non-Store version detected.");
+            //    //_isStoreVersion = false;
+            //}
+            //else
+            //{
+            //    // Check if this is a Store version
+            //    _isStoreVersion = !string.IsNullOrEmpty(_appLicense?.SkuStoreId);
+            //}
+
+            _isStoreVersion = !string.IsNullOrEmpty(_appLicense?.SkuStoreId);
+
+            if (!_isStoreVersion)
+            {
+                // Self-compiled or GitHub version - unlock premium for free
+                Logger.Info("Non-Store version detected. Premium unlocked.");
+
+                _isPremiumUnlocked = true;
+            }
+            else
+            {
+                // Store version - check if premium add-on is purchased
+                Logger.Info("Store version detected (SKU: {Sku})", _appLicense?.SkuStoreId);
+                await CheckPremiumStatusAsync();
+            }
+
+            _isInitialized = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Error initializing");
+            _isInitialized = true;
+        }
+    }
+
+    /// <summary>
+    /// Checks if the premium add-on is purchased
+    /// </summary>
+    private async Task CheckPremiumStatusAsync()
+    {
+        try
+        {
+            if (_storeContext == null)
+                return;
+
+            // works offline
+            if (_appLicense == null)
+                _appLicense = await _storeContext.GetAppLicenseAsync();
+
+            if (_appLicense == null)
+            {
+                Logger.Warn("App license is null");
+                return;
+            }
+
+            // check for premium
+            foreach (var addOnLicense in _appLicense.AddOnLicenses)
+            {
+                StoreLicense license = addOnLicense.Value;
+
+                if (license.IsActive)
+                {
+                    _isPremiumUnlocked = true;
+                    return;
+                }
+            }
+
+            Logger.Debug("Premium not owned by user.");
+
+            // COMMENTED OUT: unreliable online check
+            // refresh license from the Store to ensure up-to-date status
+            //var addOnResult = await _storeContext.GetStoreProductsAsync(new[] { "Durable" }, new[] { PremiumAddOnId });
+
+            //if (addOnResult.ExtendedError != null)
+            //{
+            //    Debug.WriteLine($"LicenseManager: Error refreshing licenses - {addOnResult.ExtendedError.Message}");
+            //    return;
+            //}
+
+            //if (addOnResult.Products.TryGetValue(PremiumAddOnId, out StoreProduct storeProduct))
+            //{
+            //    if (storeProduct.IsInUserCollection) {
+            //        _isPremiumUnlocked = true;
+            //        Debug.WriteLine("LicenseManager: Premium confirmed in user collection.");
+            //    }
+            //    else
+            //    {
+            //        Debug.WriteLine("LicenseManager: Premium not owned by user.");
+            //    }
+            //}
+            //else
+            //{
+            //    Debug.WriteLine("LicenseManager: Premium add-on not found in refreshed licenses.");
+            //}
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Error checking premium status");
+        }
+    }
+
+    /// <summary>
+    /// Prompts the user to purchase the premium add-on
+    /// </summary>
+    /// <returns>True if purchase was successful, false otherwise</returns>
+    private async Task<(bool, string)> PurchasePremiumAsync()
+    {
+        try
+        {
+            if (_storeContext == null)
+            {
+                Logger.Warn("Store context not initialized");
+                return (false, "Store context not initialized");
+            }
+
+            if (!_isStoreVersion)
+            {
+                Logger.Warn("Cannot purchase - not a Store version");
+                return (false, "Cannot purchase - not a Store version");
+            }
+
+            if (_isPremiumUnlocked)
+            {
+                Logger.Debug("Premium already unlocked");
+                return (true, string.Empty);
+            }
+
+            // Get the add-on
+            var addOnResult = await _storeContext.GetStoreProductsAsync(new[] { "Durable" }, new[] { PremiumAddOnId });
+
+            if (addOnResult.ExtendedError != null)
+            {
+                Logger.Error("Error getting add-ons - {Message}", addOnResult.ExtendedError.Message);
+                return (false, "Error getting add-ons - " + addOnResult.ExtendedError.Message);
+            }
+
+            if (!addOnResult.Products.TryGetValue(PremiumAddOnId, out _productResult))
+            {
+                Logger.Warn("Premium add-on not found in store - {AddOnId}", PremiumAddOnId);
+                return (false, "Premium add-on not found in store");
+            }
+
+            // Request purchase
+            var purchaseResult = await _storeContext.RequestPurchaseAsync(PremiumAddOnId);
+
+            if (purchaseResult.ExtendedError != null)
+            {
+                Logger.Error("Error during purchase - {Message}", purchaseResult.ExtendedError.Message);
+                return (false, "Purchase error - " + purchaseResult.ExtendedError.Message);
+            }
+
+            var status = purchaseResult.Status;
+
+            if (status == StorePurchaseStatus.Succeeded)
+            {
+                _isPremiumUnlocked = true;
+                Logger.Info("Premium purchase successful");
+                _ = TelemetryService.SendTelemetryEventAsync("premium_purchase_succeeded");
+                return (true, string.Empty);
+            }
+            else if (status == StorePurchaseStatus.AlreadyPurchased)
+            {
+                _isPremiumUnlocked = true;
+                Logger.Info("Premium already purchased");
+                return (true, string.Empty);
+            }
+            else
+            {
+                Logger.Info("Purchase failed - Status: {Status}", purchaseResult.Status);
+                return (false, $"Purchase failed - Status: {purchaseResult.Status}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Error during purchase");
+            return (false, "Error during purchase - " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Refreshes the license status (checks for changes)
+    /// </summary>
+    public async Task RefreshLicenseAsync()
+    {
+        if (!_isStoreVersion)
+            return;
+
+        await CheckPremiumStatusAsync();
+    }
+
+    /// <summary>
+    /// Gets premium product information for display
+    /// </summary>
+    private async Task<string?> GetPremiumProductInfoAsync()
+    {
+        try
+        {
+            if (_storeContext == null || !_isStoreVersion)
+                return null;
+
+            string price;
+
+            // previous price is cached - can change implementation to refresh if needed later
+            if (_productResult != null)
+            {
+                price = _productResult.Price?.FormattedPrice ?? "N/A";
+                SettingsManager.Current.PremiumPrice = price;
+
+                return price;
+            }
+
+            var addOnResult = await _storeContext.GetStoreProductsAsync(new[] { "Durable" }, new[] { PremiumAddOnId });
+
+            if (addOnResult.ExtendedError != null)
+            {
+                Logger.Error("Error getting premium add-on - {Message}", addOnResult.ExtendedError.Message);
+                return null;
+            }
+
+            if (!addOnResult.Products.TryGetValue(PremiumAddOnId, out _productResult))
+            {
+                Logger.Warn("Premium add-on not found in store - {AddOnId}", PremiumAddOnId);
+                return null;
+            }
+
+            price = _productResult.Price?.FormattedPrice ?? "N/A";
+            SettingsManager.Current.PremiumPrice = price;
+
+            return price;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Error getting product info");
+            return null;
+        }
+    }
+
+    public static async void GetPremiumProductInfo()
+    {
+        try
+        {
+            await Instance.GetPremiumProductInfoAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Error updating premium product info");
+        }
+    }
+
+    public static async void UnlockPremium(object sender)
+    {
+        try
+        {
+            if (sender is Wpf.Ui.Controls.Button button)
+            {
+                button.IsEnabled = false;
+                button.Content = "Processing...";
+            }
+
+            (bool success, string result) = await Instance.PurchasePremiumAsync();
+
+            if (success)
+            {
+                SettingsManager.Current.IsPremiumUnlocked = true;
+
+                MessageBox messageBox = new()
+                {
+                    Title = "Success",
+                    Content = Application.Current.TryFindResource("PremiumPurchaseSuccess").ToString(),
+                    CloseButtonText = "OK",
+                };
+
+                await messageBox.ShowDialogAsync();
+            }
+            else
+            {
+                MessageBox messageBox = new()
+                {
+                    Title = "Purchase Failed",
+                    Content = $"{Application.Current.TryFindResource("PremiumPurchaseFailed")} ({result})",
+                    CloseButtonText = "OK",
+                };
+
+                await messageBox.ShowDialogAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox messageBox = new()
+            {
+                Title = "Error",
+                Content = $"An error occurred: {ex.Message}",
+                CloseButtonText = "OK",
+            };
+
+            await messageBox.ShowDialogAsync();
+        }
+        finally
+        {
+            if (sender is Wpf.Ui.Controls.Button button)
+            {
+                button.IsEnabled = true;
+                button.Content = Application.Current.TryFindResource("UnlockPremiumButton").ToString();
+            }
+        }
+    }
+}

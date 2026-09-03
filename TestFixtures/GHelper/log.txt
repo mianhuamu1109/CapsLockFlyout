@@ -1,0 +1,13 @@
+fixture baseline
+Touchpad status: 1
+Key: 124
+Microphone muted:False
+fixture end
+Key: 107
+Touchpad status: 0
+Key: 107
+Touchpad status: 1
+Key: 124
+Microphone muted:True
+Key: 124
+Microphone muted:False
