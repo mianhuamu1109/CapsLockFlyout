@@ -1,12 +1,17 @@
 #define MyAppName "CapsLockFlyout"
-#define MyAppVersion "1.0.5"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Personal"
 #define MyAppExeName "CapsLockFlyout.exe"
+
+#ifndef PackageSourceDir
+#define PackageSourceDir "..\artifacts\package-win-x64"
+#endif
 
 [Setup]
 AppId={{7D253A96-4AE0-4B36-A8E6-5582D3763F40}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}.0
 AppPublisher={#MyAppPublisher}
 DefaultDirName={code:GetDefaultDirName}
 DisableDirPage=no
@@ -34,7 +39,7 @@ Name: "autostart"; Description: "使用 Windows 服务开机自启"; GroupDescri
 Name: "startmenu"; Description: "添加到开始菜单"; GroupDescription: "快捷方式："; Flags: checkedonce
 
 [Files]
-Source: "..\artifacts\package-win-x64\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PackageSourceDir}\*"; DestDir: "{app}"; Excludes: "*.pdb,Data\*,*.log,*.jsonl"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\README-CapsLockFlyout.md"; DestDir: "{app}"; DestName: "说明.md"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\NOTICE.md"; DestDir: "{app}"; Flags: ignoreversion

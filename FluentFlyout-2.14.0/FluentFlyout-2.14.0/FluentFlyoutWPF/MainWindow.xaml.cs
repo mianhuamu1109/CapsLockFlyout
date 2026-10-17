@@ -37,6 +37,7 @@ public partial class MainWindow : Window, IDisposable
     private readonly object _motionGate = new();
     private readonly OsdPlacementService _placement = new();
     private readonly CapsLockMonitor _capsLockMonitor = new();
+    private readonly InputMethodMonitor _inputMethodMonitor = new();
     private readonly GHelperMonitor _gHelperMonitor = new();
     private HwndSource? _source;
     private IntPtr _hwnd;
@@ -53,6 +54,7 @@ public partial class MainWindow : Window, IDisposable
     private int _animationCallbackActive;
     private OsdStateVisual _lastStateVisual;
     private bool? _lastStateEnabled;
+    private OsdMessage? _lastMessage;
 
     public MainWindow()
     {
@@ -93,9 +95,11 @@ public partial class MainWindow : Window, IDisposable
     {
         ApplyTheme();
         _capsLockMonitor.StateChanged += OnCapsLockChanged;
+        _inputMethodMonitor.MessageRaised += ShowMessage;
         _gHelperMonitor.MessageRaised += ShowMessage;
         _gHelperMonitor.SessionReset += OnSessionReset;
         _capsLockMonitor.Start();
+        _inputMethodMonitor.Start();
         _gHelperMonitor.Start();
 
     }
@@ -142,10 +146,13 @@ public partial class MainWindow : Window, IDisposable
         }
 
         HideImmediately();
+        _inputMethodMonitor.Rebaseline();
     }
 
     private void ShowMessage(OsdMessage message)
     {
+        if (_disposed) return;
+        if (message.InputMethod && _inputMethodMonitor.IsSuppressed) return;
         if (!Dispatcher.CheckAccess())
         {
             Dispatcher.BeginInvoke(() => ShowMessage(message));
@@ -156,6 +163,8 @@ public partial class MainWindow : Window, IDisposable
         ApplyMessageVisual(message);
         TitleText.Text = message.Title;
         DetailText.Text = message.Detail;
+        AnimateInputMethod(message);
+        _lastMessage = message;
         DetailText.HorizontalAlignment = message.CenterDetail
             ? System.Windows.HorizontalAlignment.Center
             : System.Windows.HorizontalAlignment.Left;
@@ -166,6 +175,7 @@ public partial class MainWindow : Window, IDisposable
         ProgressHost.Visibility = message.Progress.HasValue ? Visibility.Visible : Visibility.Collapsed;
         UpdateFlyoutWidth(message);
         UpdateProgressWidth();
+        ImeDiagnostics.Presented(message, _flyoutWidthDip);
 
         lock (_motionGate)
         {
@@ -196,6 +206,27 @@ public partial class MainWindow : Window, IDisposable
         _hideTimer.Stop();
         _hideTimer.Interval = message.Duration ?? TimeSpan.FromMilliseconds(2000);
         _hideTimer.Start();
+    }
+
+    private void AnimateInputMethod(OsdMessage message)
+    {
+        TitleText.BeginAnimation(OpacityProperty, null);
+        TitleMotion.BeginAnimation(TranslateTransform.YProperty, null);
+        DetailMotion.BeginAnimation(TranslateTransform.YProperty, null);
+        DetailText.BeginAnimation(OpacityProperty, null);
+        if (!message.InputMethod) return;
+        var languageChanged = _lastMessage?.InputMethod != true || _lastMessage.Title != message.Title;
+        if (languageChanged) AnimateLabel(TitleText, TitleMotion, 1);
+        if (languageChanged || _lastMessage?.Detail != message.Detail)
+            AnimateLabel(DetailText, DetailMotion, 0.68);
+    }
+
+    private static void AnimateLabel(TextBlock label, TranslateTransform motion, double opacity)
+    {
+        label.BeginAnimation(OpacityProperty, new DoubleAnimation(0.25, opacity, StateAnimationDuration)
+        { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } });
+        motion.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(4, 0, StateAnimationDuration)
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
     }
 
     private void ApplyTheme()
@@ -624,6 +655,7 @@ public partial class MainWindow : Window, IDisposable
         }
         _animationTimer.Dispose();
         _capsLockMonitor.Dispose();
+        _inputMethodMonitor.Dispose();
         _gHelperMonitor.SessionReset -= OnSessionReset;
         _gHelperMonitor.Dispose();
         if (_source is not null)

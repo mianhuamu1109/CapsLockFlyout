@@ -17,7 +17,8 @@ internal sealed record OsdMessage(
     OsdStateVisual StateVisual = OsdStateVisual.None,
     double? FixedWidth = null,
     string? FixedDetailReference = null,
-    bool CenterDetail = false)
+    bool CenterDetail = false,
+    bool InputMethod = false)
 {
     public static OsdMessage WithProgress(string glyph, string title, string detail, double progress) =>
         new(glyph, title, detail, Math.Clamp(progress, 0, 1));

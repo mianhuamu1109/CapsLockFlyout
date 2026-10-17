@@ -3,25 +3,19 @@ using System.Runtime.InteropServices;
 
 namespace FluentFlyoutWPF.CapsFlyout;
 
+// Original Caps Lock notification only. Does not trigger IME queries.
 internal sealed class CapsLockMonitor : IDisposable
 {
     private NativeMethods.LowLevelKeyboardProc? _callback;
     private IntPtr _hook;
-
     internal event Action<bool>? StateChanged;
 
     internal void Start()
     {
-        if (_hook != IntPtr.Zero)
-            return;
-
+        if (_hook != IntPtr.Zero) return;
         _callback = HookCallback;
-        _hook = NativeMethods.SetWindowsHookEx(
-            NativeMethods.WH_KEYBOARD_LL,
-            _callback,
-            NativeMethods.GetModuleHandle(null),
-            0);
-
+        _hook = NativeMethods.SetWindowsHookEx(NativeMethods.WH_KEYBOARD_LL,
+            _callback, NativeMethods.GetModuleHandle(null), 0);
         if (_hook == IntPtr.Zero)
             throw new Win32Exception(Marshal.GetLastWin32Error(), "无法安装 Caps Lock 键盘监听器。");
     }
@@ -33,9 +27,14 @@ internal sealed class CapsLockMonitor : IDisposable
         {
             var data = Marshal.PtrToStructure<NativeMethods.KeyboardHookData>(lParam);
             if (data.VirtualKeyCode == NativeMethods.VK_CAPITAL)
-                StateChanged?.Invoke((NativeMethods.GetKeyState(NativeMethods.VK_CAPITAL) & 1) != 0);
+            {
+                // Japanese IME owns this key; do not show Caps Lock for it.
+                var foreground = ImeNative.GetForegroundWindow();
+                var thread = NativeMethods.GetWindowThreadProcessId(foreground, out _);
+                if (thread != 0 && ((long)ImeNative.GetKeyboardLayout(thread) & 0x3ff) != 0x11)
+                    StateChanged?.Invoke((NativeMethods.GetKeyState(NativeMethods.VK_CAPITAL) & 1) != 0);
+            }
         }
-
         return NativeMethods.CallNextHookEx(_hook, code, wParam, lParam);
     }
 

@@ -36,6 +36,7 @@ public partial class App : System.Windows.Application
         try
         {
             AppStorage.EnsureDataDirectory();
+            ImeDiagnostics.Enabled = e.Args.Contains("--ime-diagnostics", StringComparer.OrdinalIgnoreCase);
 
             if (e.Args.Contains("--service", StringComparer.OrdinalIgnoreCase))
             {

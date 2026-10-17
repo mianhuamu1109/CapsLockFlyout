@@ -97,7 +97,11 @@
                            FontSize="12"
                            FontWeight="DemiBold"
                            TextTrimming="CharacterEllipsis"
-                           Text="大写锁定" />
+                           Text="大写锁定">
+                    <TextBlock.RenderTransform>
+                        <TranslateTransform x:Name="TitleMotion" />
+                    </TextBlock.RenderTransform>
+                </TextBlock>
 
                 <TextBlock x:Name="DetailText"
                            Grid.Row="0"
@@ -107,7 +111,11 @@
                            FontSize="11.5"
                            Opacity="0.68"
                            TextTrimming="CharacterEllipsis"
-                           Text="已开启" />
+                           Text="已开启">
+                    <TextBlock.RenderTransform>
+                        <TranslateTransform x:Name="DetailMotion" />
+                    </TextBlock.RenderTransform>
+                </TextBlock>
 
                 <Grid x:Name="ProgressHost"
                       Grid.Row="1"
