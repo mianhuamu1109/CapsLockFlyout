@@ -20,6 +20,11 @@ internal sealed record OsdMessage(
     bool CenterDetail = false,
     bool InputMethod = false)
 {
+    // Keep delayed IME notifications tied to their original foreground session.
+    internal nint InputMethodForeground { get; init; }
+    internal long InputMethodEpoch { get; init; }
+    internal int InputMethodSession { get; init; }
+
     public static OsdMessage WithProgress(string glyph, string title, string detail, double progress) =>
         new(glyph, title, detail, Math.Clamp(progress, 0, 1));
 

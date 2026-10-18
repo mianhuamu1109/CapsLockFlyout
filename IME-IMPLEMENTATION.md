@@ -1,4 +1,12 @@
-# 1.1.0 输入法状态查询
+# 1.1 输入法状态查询
+
+## 1.1.1 前台窗口静默策略
+
+InputMethodChangeTracker 按前台顶层窗口区分状态。检测到窗口变化后开启 400 ms 固定静默期，期间持续更新基线；到期不补发任何变化。窗口内部输入框焦点变化不单独重置静默时间。
+
+消息携带前台窗口、窗口切换序号和会话序号；进入 UI 显示前再次核对，旧窗口或旧会话的排队消息失效。不增加临时面板识别或输入法键盘触发。
+
+静默期内主动切换也可能不提示；时间以后台轮询检测为起点。验证范围见 VALIDATION-1.1.1.md。
 
 基于用户提供的 keyboard-ime-fluent-indicator-v2.wh.cpp（MIT）的
 ReadForegroundSnapshot、QueryLegacyIme、Changed 方法移植。

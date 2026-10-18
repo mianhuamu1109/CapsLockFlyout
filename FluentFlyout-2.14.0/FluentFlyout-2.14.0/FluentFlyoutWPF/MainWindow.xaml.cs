@@ -152,7 +152,7 @@ public partial class MainWindow : Window, IDisposable
     private void ShowMessage(OsdMessage message)
     {
         if (_disposed) return;
-        if (message.InputMethod && _inputMethodMonitor.IsSuppressed) return;
+        if (message.InputMethod && !_inputMethodMonitor.CanPresent(message)) return;
         if (!Dispatcher.CheckAccess())
         {
             Dispatcher.BeginInvoke(() => ShowMessage(message));
