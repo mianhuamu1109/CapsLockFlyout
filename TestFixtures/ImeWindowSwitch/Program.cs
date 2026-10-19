@@ -28,6 +28,7 @@ internal static partial class Program
                 return 0;
             }
             RunSequenceTests();
+            RunExclusionTests();
             if (args.Contains("--live")) RunLiveTests();
             Console.WriteLine($"All {_checks} checks passed.");
             return 0;

@@ -96,6 +96,7 @@ public partial class MainWindow : Window, IDisposable
         ApplyTheme();
         _capsLockMonitor.StateChanged += OnCapsLockChanged;
         _inputMethodMonitor.MessageRaised += ShowMessage;
+        _inputMethodMonitor.HideInputMethodRequested += OnInputMethodExcluded;
         _gHelperMonitor.MessageRaised += ShowMessage;
         _gHelperMonitor.SessionReset += OnSessionReset;
         _capsLockMonitor.Start();
@@ -625,6 +626,17 @@ public partial class MainWindow : Window, IDisposable
         return 3 * inverse * inverse * t * control1 +
                3 * inverse * t * t * control2 +
                t * t * t;
+    }
+
+    private void OnInputMethodExcluded()
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            // A later hardware card or a valid newer language card must survive.
+            if (!_disposed && _lastMessage?.InputMethod == true &&
+                !_inputMethodMonitor.CanPresent(_lastMessage))
+                HideImmediately();
+        });
     }
 
     public void HideImmediately()

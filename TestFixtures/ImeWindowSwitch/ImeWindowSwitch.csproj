@@ -7,6 +7,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../FluentFlyout-2.14.0/FluentFlyout-2.14.0/FluentFlyoutWPF/CapsFlyout/InputMethodExclusions.cs" Link="InputMethodExclusions.cs" />
+    <Compile Include="../../FluentFlyout-2.14.0/FluentFlyout-2.14.0/FluentFlyoutWPF/CapsFlyout/ForegroundExecutable.cs" Link="ForegroundExecutable.cs" />
+    <Compile Include="../../FluentFlyout-2.14.0/FluentFlyout-2.14.0/FluentFlyoutWPF/CapsFlyout/AppStorage.cs" Link="AppStorage.cs" />
     <Compile Include="../../FluentFlyout-2.14.0/FluentFlyout-2.14.0/FluentFlyoutWPF/CapsFlyout/NativeMethods.cs" Link="NativeMethods.cs" />
     <Compile Include="../../FluentFlyout-2.14.0/FluentFlyout-2.14.0/FluentFlyoutWPF/CapsFlyout/InputMethodSnapshot.cs" Link="InputMethodSnapshot.cs" />
     <Compile Include="../../FluentFlyout-2.14.0/FluentFlyout-2.14.0/FluentFlyoutWPF/CapsFlyout/InputMethodChangeTracker.cs" Link="InputMethodChangeTracker.cs" />
