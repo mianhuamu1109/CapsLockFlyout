@@ -9,6 +9,7 @@ internal sealed class InputMethodMonitor : IDisposable
     private readonly InputMethodExclusions _exclusions;
     private readonly Func<nint> _foreground;
     private readonly Func<nint, string?> _executable;
+    private readonly Func<nint, ApplicationIdentity> _identity;
     private readonly Func<InputMethodSnapshot> _read;
     private readonly Func<long> _tick;
     private int _observedGeneration;
@@ -25,18 +26,22 @@ internal sealed class InputMethodMonitor : IDisposable
 
     internal InputMethodMonitor(InputMethodExclusions? exclusions = null,
         Func<nint>? foreground = null, Func<nint, string?>? executable = null,
-        Func<InputMethodSnapshot>? read = null, Func<long>? tick = null)
+        Func<InputMethodSnapshot>? read = null, Func<long>? tick = null,
+        Func<nint, ApplicationIdentity>? identity = null)
     {
         _exclusions = exclusions ?? InputMethodExclusions.Current;
         _foreground = foreground ?? ImeNative.GetForegroundWindow;
         _executable = executable ?? ForegroundExecutable.Read;
+        _identity = identity ?? ApplicationIdentityReader.Read;
         _read = read ?? InputMethodStateReader.Read;
         _tick = tick ?? (() => Environment.TickCount64);
         _exclusions.Changed += Rebaseline;
     }
 
     private bool IsExcluded(nint foreground) =>
-        _exclusions.HasEntries && _exclusions.Contains(_executable(foreground));
+        _exclusions.HasEntries &&
+        ((_exclusions.Paths.Count > 0 && _exclusions.Contains(_executable(foreground))) ||
+         (_exclusions.HasApplications && _exclusions.Matches(_identity(foreground))));
 
     internal bool CanPresent(OsdMessage message) => !IsSuppressed &&
         message.InputMethodSession == Volatile.Read(ref _generation) &&

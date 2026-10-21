@@ -29,6 +29,8 @@ internal static partial class Program
             }
             RunSequenceTests();
             RunExclusionTests();
+            RunPackageTests();
+            if (args.Contains("--catalog")) RunCatalogTests(args.Contains("--require-photos"));
             if (args.Contains("--live")) RunLiveTests();
             Console.WriteLine($"All {_checks} checks passed.");
             return 0;

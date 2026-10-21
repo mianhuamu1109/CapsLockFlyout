@@ -32,6 +32,13 @@ internal static class Program
             var empty = (TextBlock)window.FindName("EmptyExclusionsText");
             var remove = (Button)window.FindName("RemoveExclusionButton");
             var save = typeof(StartupSettingsWindow).GetMethod("SaveExclusions", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var saveRules = typeof(StartupSettingsWindow).GetMethod("SaveRules", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var assembly = typeof(StartupSettingsWindow).Assembly;
+            var ruleType = assembly.GetType("FluentFlyoutWPF.CapsFlyout.ApplicationExclusion")!;
+            var emptyRules = Array.CreateInstance(ruleType, 0);
+            var photosRules = Array.CreateInstance(ruleType, 1);
+            photosRules.SetValue(Activator.CreateInstance(ruleType,
+                "照片", "Microsoft.Windows.Photos_8wekyb3d8bbwe", "Microsoft.Windows.Photos_8wekyb3d8bbwe!App"), 0);
             var removeClick = typeof(StartupSettingsWindow).GetMethod("OnRemoveExclusionClick", BindingFlags.Instance | BindingFlags.NonPublic)!;
             void Save(string[] paths) => save.Invoke(window, [paths]);
             void Layout()
@@ -41,7 +48,7 @@ internal static class Program
                 root.UpdateLayout();
                 Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.Render);
             }
-            Save([]);
+            saveRules.Invoke(window, [Array.Empty<string>(), emptyRules]);
             Layout();
             Check(empty.Visibility == Visibility.Visible && list.Items.Count == 0, "Empty-list hint is visible");
             Check(!remove.IsEnabled, "Remove is disabled with no selection");
@@ -57,6 +64,13 @@ internal static class Program
             Check(File.Exists(data), "Settings saved beside test executable, not in user profile");
             var output = Path.Combine(AppContext.BaseDirectory, "artifacts");
             Directory.CreateDirectory(output);
+            saveRules.Invoke(window, [new[] { @"D:\Tools\Editor.exe" }, photosRules]);
+            Layout();
+            Check(list.Items.Count == 2, "EXE and application rules share one settings list");
+            list.SelectedIndex = 1;
+            Layout();
+            Check(!((Button)window.FindName("ConvertExclusionButton")).IsEnabled, "Identity rule cannot be converted again");
+            Check(remove.IsEnabled, "Application rule can be selected for removal");
             foreach (var scale in new[] { 1.0, 1.5, 2.0 })
             {
                 var bitmap = new RenderTargetBitmap((int)(534 * scale), (int)(581 * scale),
@@ -69,7 +83,7 @@ internal static class Program
                 png.Save(stream);
                 Console.WriteLine("Layout render: " + file);
             }
-            foreach (var name in new[] { "StartWithWindowsCheckBox", "ExcludedProgramsList", "AddExclusionButton", "RemoveExclusionButton", "ExclusionStatusText" })
+            foreach (var name in new[] { "StartWithWindowsCheckBox", "ExcludedProgramsList", "AddExclusionButton", "AddApplicationButton", "ConvertExclusionButton", "RemoveExclusionButton", "ExclusionStatusText" })
             {
                 var element = (FrameworkElement)window.FindName(name);
                 var rectangle = element.TransformToAncestor(root).TransformBounds(new Rect(element.RenderSize));
@@ -77,8 +91,39 @@ internal static class Program
                     rectangle.Left >= 0 && rectangle.Right <= root.ActualWidth, name + " fits in content");
             }
             removeClick.Invoke(window, [remove, new RoutedEventArgs()]);
-            Check(list.Items.Count == 2 && !remove.IsEnabled, "Removing selection updates list and button state");
+            Check(list.Items.Count == 1 && !remove.IsEnabled, "Removing app identity preserves the EXE rule");
             Save([]);
+            var picker = new InstalledApplicationsWindow();
+            var applicationType = assembly.GetType("FluentFlyoutWPF.CapsFlyout.InstalledApplication")!;
+            var candidates = Array.CreateInstance(applicationType, 2);
+            candidates.SetValue(Activator.CreateInstance(applicationType,
+                "照片", "Microsoft.Windows.Photos_8wekyb3d8bbwe", "Microsoft.Windows.Photos_8wekyb3d8bbwe!App", Array.Empty<string>()), 0);
+            candidates.SetValue(Activator.CreateInstance(applicationType,
+                "截图工具", "Microsoft.ScreenSketch_8wekyb3d8bbwe", "Microsoft.ScreenSketch_8wekyb3d8bbwe!App", Array.Empty<string>()), 1);
+            typeof(InstalledApplicationsWindow).GetMethod("SetApplications", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(picker, [candidates]);
+            var search = (TextBox)picker.FindName("SearchBox");
+            var apps = (ListBox)picker.FindName("ApplicationsList");
+            Check(apps.Items.Count == 2, "Installed-app picker displays application names");
+            search.Text = "照片";
+            Check(apps.Items.Count == 1, "Picker supports Chinese search");
+            apps.SelectedIndex = 0;
+            Check(((Button)picker.FindName("AcceptButton")).IsEnabled, "Choosing Photos enables Add");
+            var pickerRoot = (Grid)picker.Content;
+            pickerRoot.Background = picker.Background;
+            pickerRoot.Measure(new Size(564, 521));
+            pickerRoot.Arrange(new Rect(0, 0, 564, 521));
+            pickerRoot.UpdateLayout();
+            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.Render);
+            var rendered = new RenderTargetBitmap(846, 782, 144, 144, PixelFormats.Pbgra32);
+            rendered.Render(pickerRoot);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(rendered));
+            using (var stream = File.Create(Path.Combine(output, "installed-apps-150.png"))) encoder.Save(stream);
+            search.Text = "not-installed-example";
+            Check(apps.Items.Count == 0 && !((Button)picker.FindName("AcceptButton")).IsEnabled,
+                "No search match disables Add");
+            picker.Close();
             window.Close();
             app.Shutdown();
             Console.WriteLine($"All {_checks} settings checks passed.");

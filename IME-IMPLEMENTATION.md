@@ -1,5 +1,19 @@
 # 1.1 输入法状态查询
 
+## 1.1.3 稳定应用身份
+
+新增 ApplicationIdentityReader：使用 GetPackageFamilyName 与 GetApplicationUserModelId 读取进程的包族标识和具体应用 ID。规则同时匹配二者，不按包名或 EXE 名称猜测。路径、版本、架构变化不参与该规则匹配；发行者或应用 ID 本身变更则需重新添加。
+
+对系统 ApplicationFrameHost.exe，枚举该窗口可见子窗口所属的打包进程，只有唯一应用身份时才采用；不把共享宿主自动作为禁用对象。身份无法读取或存在歧义时不扩大禁用范围。用户显式添加的 EXE 路径规则仍单独匹配。
+
+缓存键为 PID 与进程创建时间，最多 128 项、5 秒有效期；获取不到应用 ID 的打包进程不缓存失败结果。保留 120 ms 轮询；规则为空时不查询路径/身份，只有路径规则时不增加包身份查询。应用列表不参与后台轮询。
+
+InstalledApplications 在独立 STA 线程通过 shell:AppsFolder 枚举名称和 System.AppUserModel.ID，以 GetPackagesByPackageFamily 验证当前用户注册的包。读取当前包清单中的 Executable 仅用于显式转换旧路径；无法读取清单不影响选择应用身份。精确唯一匹配才允许转换，不解析过期目录名来猜身份，不改 WindowsApps 权限。
+
+设置格式升级为 Version=2 的对象，包含 Paths 与 Applications。仍能读取 1.1.2 字符串数组，读取时不迁移；用户首次保存时先保留原文件 .v1-backup，再以同目录临时文件替换。未知版本或损坏配置拒绝覆盖。1.1.2 无法读取新对象，降级需先退出程序并恢复旧备份。
+
+官方接口：[包族标识](https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getpackagefamilyname)、[应用 ID](https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getapplicationusermodelid)、[已注册包](https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getpackagesbypackagefamily)。
+
 ## 1.1.2 程序禁用名单
 
 设置页选择 EXE 完整路径，保存到安装目录 Data/ime-exclusions.json。内存中以不可变数组快照供轮询读取，不在轮询中读写配置文件；名单为空时不增加进程路径查询。

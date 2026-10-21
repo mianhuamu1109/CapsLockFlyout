@@ -71,7 +71,7 @@
                 <TextBlock FontWeight="DemiBold" Text="输入法浮窗禁用程序" />
                 <TextBlock Grid.Row="1" Margin="0,6,0,10" Foreground="#666666"
                            FontSize="12" TextWrapping="Wrap"
-                           Text="所选 EXE 的窗口位于前台时，不显示输入法浮窗。大写锁定与硬件提示不受影响。按完整路径匹配，更改立即保存。" />
+                           Text="所选程序位于前台时，不显示输入法浮窗。普通 EXE 按路径匹配；商店应用按身份匹配，更新后仍有效。更改立即保存。" />
                 <Grid Grid.Row="2">
                     <ListBox x:Name="ExcludedProgramsList" SelectionMode="Extended"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -86,7 +86,7 @@
                             <DataTemplate>
                                 <StackPanel Margin="4" ToolTip="{Binding FullPath}">
                                     <TextBlock Text="{Binding Name}" FontWeight="DemiBold" />
-                                    <TextBlock Text="{Binding FullPath}" Foreground="#666666"
+                                    <TextBlock Text="{Binding Description}" Foreground="#666666"
                                                FontSize="11" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </DataTemplate>
@@ -97,10 +97,15 @@
                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Grid>
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,10,0,0">
-                    <Button x:Name="AddExclusionButton" Content="添加程序…" Width="98" Height="30"
+                    <Button x:Name="AddExclusionButton" Content="添加 EXE…" Width="96" Height="30"
                             Click="OnAddExclusionClick" />
+                    <Button x:Name="AddApplicationButton" Content="选择已安装应用…" Width="134" Height="30"
+                            Margin="8,0,0,0" Click="OnAddApplicationClick" />
                     <Button x:Name="RemoveExclusionButton" Content="移除所选" Width="98" Height="30"
                             Margin="8,0,0,0" IsEnabled="False" Click="OnRemoveExclusionClick" />
+                    <Button x:Name="ConvertExclusionButton" Content="转换所选" Width="88" Height="30"
+                            Margin="8,0,0,0" IsEnabled="False" Click="OnConvertExclusionClick"
+                            ToolTip="将可识别的现有 EXE 路径规则转换为更新后仍有效的应用身份规则" />
                 </StackPanel>
                 <TextBlock x:Name="ExclusionStatusText" Grid.Row="4" Margin="0,6,0,0"
                            FontSize="12" Foreground="#666666" TextWrapping="Wrap" />
